@@ -1,9 +1,9 @@
 /**
  * Retell AI Webhook Handler - Netlify Function (CommonJS)
- * Receives call_ended webhooks and triggers voice callback
+ * Receives call_ended webhooks and sends email notification
  */
 
-const twilio = require('twilio');
+const nodemailer = require('nodemailer');
 
 exports.handler = async (event, context) => {
   // Only accept POST
@@ -51,38 +51,43 @@ exports.handler = async (event, context) => {
     
     // Check if this is MWS agent
     if (agentId === process.env.MWS_AGENT_ID) {
-      // Get credentials from env
-      const TWILIO_SID = process.env.TWILIO_SID;
-      const TWILIO_AUTH = process.env.TWILIO_AUTH;
-      const DAVE_PHONE = process.env.DAVE_PHONE || '+19012315951';
-      const CALLBACK_FROM = process.env.CALLBACK_FROM || '+19016604277';
+      // Get email credentials from env
+      const EMAIL_USER = process.env.EMAIL_USER;
+      const EMAIL_PASS = process.env.EMAIL_PASS;
+      const EMAIL_TO = process.env.EMAIL_TO || 'buzzranchboss@gmail.com';
       
-      // Send voice callback to Dave
-      const client = twilio(TWILIO_SID, TWILIO_AUTH);
-      
-      // Format phone number as spoken digits (each digit separated by space)
-      const phoneDigits = callerPhone.replace(/\D/g, '').split('').join(' ');
-      
-      // Build the message
-      const leadInfo = `New lead from ${callerName}. They're interested in ${serviceNeeded.substring(0, 50)}. Callback number is ${phoneDigits}. Call duration was ${durationStr}.`;
-      
-      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Pause length="3"/>
-    <Say voice="Polly.Matthew-Neural">${leadInfo}</Say>
-    <Pause length="3"/>
-    <Say voice="Polly.Matthew-Neural">I'll repeat that. ${leadInfo}</Say>
-    <Pause length="3"/>
-    <Say voice="Polly.Matthew-Neural">One more time. ${leadInfo}</Say>
-</Response>`;
-      
-      await client.calls.create({
-        twiml: twiml,
-        to: DAVE_PHONE,
-        from: CALLBACK_FROM
+      // Create email transporter
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: EMAIL_USER,
+          pass: EMAIL_PASS // App password, not regular password
+        }
       });
       
-      console.log(`MWS notification sent for call ${callId}`);
+      // Build email content
+      const subject = `New Lead: ${callerName} - ${serviceNeeded.substring(0, 30)}`;
+      const body = `
+New lead from Memphis Web Solutions AI Receptionist!
+
+Name: ${callerName}
+Phone: ${callerPhone}
+Service: ${serviceNeeded}
+Call Duration: ${durationStr}
+Call ID: ${callId}
+
+Call them back ASAP!
+      `.trim();
+      
+      // Send email
+      await transporter.sendMail({
+        from: EMAIL_USER,
+        to: EMAIL_TO,
+        subject: subject,
+        text: body
+      });
+      
+      console.log(`Lead notification email sent for call ${callId}`);
     }
     
     return {
