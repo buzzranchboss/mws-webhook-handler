@@ -60,15 +60,20 @@ exports.handler = async (event, context) => {
       // Send voice callback to Dave
       const client = twilio(TWILIO_SID, TWILIO_AUTH);
       
-      const escapedMsg = `New lead from ${callerName}. They're interested in ${serviceNeeded.substring(0, 50)}. Callback number is ${callerPhone}. Call duration was ${durationStr}.`
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+      // Format phone number as spoken digits (each digit separated by space)
+      const phoneDigits = callerPhone.replace(/\D/g, '').split('').join(' ');
+      
+      // Build the message
+      const leadInfo = `New lead from ${callerName}. They're interested in ${serviceNeeded.substring(0, 50)}. Callback number is ${phoneDigits}. Call duration was ${durationStr}.`;
       
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Pause length="3"/>
-    <Say voice="Polly.Matthew-Neural">${escapedMsg}</Say>
+    <Say voice="Polly.Matthew-Neural">${leadInfo}</Say>
+    <Pause length="3"/>
+    <Say voice="Polly.Matthew-Neural">I'll repeat that. ${leadInfo}</Say>
+    <Pause length="3"/>
+    <Say voice="Polly.Matthew-Neural">One more time. ${leadInfo}</Say>
 </Response>`;
       
       await client.calls.create({
