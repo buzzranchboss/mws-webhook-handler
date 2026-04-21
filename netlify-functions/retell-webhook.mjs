@@ -37,14 +37,15 @@ async function sendVoiceCall(toNumber, message) {
   return call.sid;
 }
 
-export default async (event, context) => {
+export default async (req, context) => {
   // Only accept POST
-  if (event.httpMethod !== 'POST') {
+  if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
   try {
-    const data = JSON.parse(event.body);
+    const body = await req.text();
+    const data = JSON.parse(body);
     const eventType = data.event;
     
     console.log(`Webhook received: ${eventType}`);
